@@ -1,0 +1,15 @@
+fastapi==0.104.1   # FastAPI 웹 프레임워크
+uvicorn==0.23.2    # ASGI 서버
+pydantic==2.5.3    # 데이터 유효성 검사 및 설정 관리
+sqlmodel==0.0.14   # SQL 데이터베이스와 상호 작용하기 위한 라이브러리
+
+PyJWT                  # JSON Web Token (JWT) 구현
+mysql-connector-python # MySQL 데이터베이스 커넥터
+pillow                 # 이미지 처리 라이브러리
+requests               # HTTP 요청 라이브러리
+SQLAlchemy             # SQL ORM (Object Relational Mapper)
+python-multipart       # multipart/form-data 파싱 지원
+httpx                  # 비동기 HTTP 요청 라이브러리
+apscheduler            # 작업 스케줄링 라이브러리
+boto3                  # AWS SDK for Python
+python-dotenv          # .env 파일에서 환경 변수 로드

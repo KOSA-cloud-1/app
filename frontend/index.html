@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Management System</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Employee Management System</h1>
+
+        <div id="auth-section">
+            <h2>Login</h2>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Username" value="admin" required>
+                <input type="password" id="password" placeholder="Password" value="password" required>
+                <button type="submit">Login</button>
+            </form>
+            <p id="auth-message" class="message"></p>
+        </div>
+
+        <div id="employee-section" style="display: none;">
+            <h2>Welcome! <span id="logged-in-user"></span></h2>
+            <button id="logout-button">Logout</button>
+
+            <h3>Employee List</h3>
+            <button id="refresh-employees">Refresh List</button>
+            <div id="employee-list">
+                <!-- Employee data will be loaded here -->
+            </div>
+
+            <h3>Add/Edit Employee</h3>
+            <form id="employee-form">
+                <input type="hidden" id="employee-id">
+                <input type="text" id="full_name" placeholder="Full Name" required>
+                <input type="text" id="location" placeholder="Location" required>
+                <input type="text" id="job_title" placeholder="Job Title" required>
+                <div class="form-group">
+                    <label for="photo">Photo:</label>
+                    <input type="file" id="photo" accept="image/*">
+                    <div id="photo-preview-container">
+                        <img id="photo-preview" src="/static/no_photo.png" alt="Photo Preview" width="120" height="160">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Badges:</label>
+                    <div id="badges-checkboxes">
+                        <input type="checkbox" id="badge-apple" value="Mac User"><label for="badge-apple">Mac User</label>
+                        <input type="checkbox" id="badge-windows" value="Windows User"><label for="badge-windows">Windows User</label>
+                        <input type="checkbox" id="badge-linux" value="Linux User"><label for="badge-linux">Linux User</label>
+                        <input type="checkbox" id="badge-video-camera" value="Digital Content Star"><label for="badge-video-camera">Digital Content Star</label>
+                        <input type="checkbox" id="badge-trophy" value="Employee of the Month"><label for="badge-trophy">Employee of the Month</label>
+                        <input type="checkbox" id="badge-camera" value="Photographer"><label for="badge-camera">Photographer</label>
+                        <input type="checkbox" id="badge-plane" value="Frequent Flier"><label for="badge-plane">Frequent Flier</label>
+                        <input type="checkbox" id="badge-paperclip" value="Paperclip Afficionado"><label for="badge-paperclip">Paperclip Afficionado</label>
+                        <input type="checkbox" id="badge-coffee" value="Coffee Snob"><label for="badge-coffee">Coffee Snob</label>
+                        <input type="checkbox" id="badge-gamepad" value="Gamer"><label for="badge-gamepad">Gamer</label>
+                        <input type="checkbox" id="badge-bug" value="Bugfixer"><label for="badge-bug">Bugfixer</label>
+                        <input type="checkbox" id="badge-umbrella" value="Seattle Fan"><label for="badge-umbrella">Seattle Fan</label>
+                    </div>
+                </div>
+
+                <button type="submit">Save Employee</button>
+                <button type="button" id="cancel-edit" style="display: none;">Cancel Edit</button>
+            </form>
+            <p id="employee-message" class="message"></p>
+            <div id="loading-indicator">
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
