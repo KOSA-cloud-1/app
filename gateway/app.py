@@ -15,9 +15,9 @@ app.add_middleware(
 )
 
 # 다운스트림 서비스(인증 서버, 직원 서버)의 URL 정의
-AUTH_SERVER_URL = "http://auth_server:5001"
-EMPLOYEE_SERVER_URL = "http://employee_server:5002"
-PHOTO_SERVICE_URL = "http://photo_service:5003" # 사진 서비스 URL
+AUTH_SERVER_URL = "http://auth-server:5001"
+EMPLOYEE_SERVER_URL = "http://employee-server:5002"
+PHOTO_SERVICE_URL = "http://photo-service:5003" # 사진 서비스 URL
 
 # 비동기 요청을 위한 httpx 클라이언트 초기화
 # 연결 풀링을 위해 전역 클라이언트 사용
@@ -59,7 +59,7 @@ async def proxy_employee_photo_requests(filename: str, request: Request):
         # 서비스 사용 불가 시 예외 발생
         raise HTTPException(status_code=503, detail=f"Employee photo service unavailable: {str(e)}")
 
-# auth_server로 요청 프록시
+# auth-server로 요청 프록시
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_auth_requests(path: str, request: Request):
     """인증 서버로 요청을 프록시합니다."""
@@ -92,7 +92,7 @@ async def proxy_auth_requests(path: str, request: Request):
         # 서비스 사용 불가 시 예외 발생
         raise HTTPException(status_code=503, detail=f"Auth service unavailable: {str(e)}")
 
-# employee_server로 요청 프록시
+# employee-server로 요청 프록시
 @app.api_route("/api/employee/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_employee_requests(path: str, request: Request):
     """직원 서버로 요청을 프록시합니다."""
