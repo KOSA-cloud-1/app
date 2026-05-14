@@ -11,7 +11,7 @@ FLASK_SECRET = "something-random"
 JWT_SECRET_KEY = 'your-super-secret-key-change-it'
 
 # 사진 서비스 URL
-PHOTO_SERVICE_URL = os.environ.get('PHOTO_SERVICE_URL', 'http://photo_service:5003')
+PHOTO_SERVICE_URL = os.environ.get('PHOTO_SERVICE_URL', 'http://photo-service:5003')
 
 # 데이터베이스 호스트 (환경 변수에서 가져오거나 기본값 사용)
 #DATABASE_HOST = os.environ['DATABASE_HOST'] if 'DATABASE_HOST' in os.environ else None
@@ -21,7 +21,7 @@ PHOTO_SERVICE_URL = os.environ.get('PHOTO_SERVICE_URL', 'http://photo_service:50
 #DATABASE_PASSWORD = os.environ['DATABASE_PASSWORD'] if 'DATABASE_PASSWORD' in os.environ else None
 # 데이터베이스 이름 (환경 변수에서 가져오거나 기본값 사용)
 #DATABASE_DB_NAME = os.environ['DATABASE_DB_NAME'] if 'DATABASE_DB_NAME' in os.environ else None
-DATABASE_HOST = "db" # 데이터베이스 호스트
+DATABASE_HOST = "mysql" # 데이터베이스 호스트
 DATABASE_USER = "root" # 데이터베이스 사용자
 DATABASE_PASSWORD = "kosa1004" # 데이터베이스 비밀번호
 DATABASE_DB_NAME = "employees" # 데이터베이스 이름
