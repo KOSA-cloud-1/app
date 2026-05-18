@@ -1,7 +1,7 @@
 import os
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import boto3
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
@@ -30,43 +30,6 @@ s3_client = boto3.client(
 )
 
 # =========================================================
-# AWS S3 (백업용) 설정
-# =========================================================
-AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-2")
-AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
-AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
-
-aws_s3_client = None
-if AWS_ACCESS_KEY and AWS_SECRET_KEY:
-    aws_s3_client = boto3.client(
-        "s3",
-        region_name=AWS_REGION,
-        aws_access_key_id=AWS_ACCESS_KEY,
-        aws_secret_access_key=AWS_SECRET_KEY,
-    )
-
-def get_s3_client_and_key(object_key: str):
-    """
-    object_key가 s3:// 로 시작하면 AWS S3용 클라이언트와 버킷/키를 반환,
-    그렇지 않으면 Ceph S3용 클라이언트와 기본 버킷/키를 반환합니다.
-    """
-    if object_key.startswith("s3://"):
-        if not aws_s3_client:
-            raise HTTPException(
-                status_code=500,
-                detail="AWS S3 client is not configured (missing credentials)"
-            )
-        # s3://bucket-name/object-key 형식 파싱
-        # 예: s3://my-backup-bucket/photos/uuid.jpg
-        parts = object_key[5:].split("/", 1)
-        if len(parts) == 2:
-            bucket_name = parts[0]
-            real_key = parts[1]
-            return aws_s3_client, bucket_name, real_key
-    
-    return s3_client, S3_BUCKET, object_key
-
-# =========================================================
 # Bucket 자동 생성
 # =========================================================
 
@@ -87,7 +50,7 @@ create_bucket_if_not_exists()
 @app.post("/upload")
 async def upload_photo(file: UploadFile = File(...)):
     """
-    파일 업로드 후 object_key 반환 (기본적으로 Ceph S3에 업로드)
+    파일 업로드 후 object_key 반환
     """
 
     if not file.filename:
@@ -136,70 +99,48 @@ async def upload_photo(file: UploadFile = File(...)):
 # 다운로드 / 조회
 # =========================================================
 
-@app.get("/photos/{object_key:path}")
+@app.get("/photos/{object_key}")
 async def get_photo(object_key: str):
     """
-    Presigned URL 생성 후 Redirect
+    Ceph에서 이미지를 서버 측에서 가져와 스트리밍 응답으로 반환
+    (브라우저가 내부망 Ceph에 직접 접속하지 않아도 됨)
     """
-    target_client, bucket, key = get_s3_client_and_key(object_key)
 
     try:
-        # 파일 존재 확인
-        target_client.head_object(
-            Bucket=bucket,
-            Key=key
-        )
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=object_key)
+        content_type = response.get("ContentType", "image/jpeg")
+        return StreamingResponse(response["Body"], media_type=content_type)
 
     except ClientError:
         raise HTTPException(
             status_code=404,
-            detail=f"Photo not found: {object_key}"
-        )
-
-    try:
-        # Presigned URL 생성
-        presigned_url = target_client.generate_presigned_url(
-            "get_object",
-            Params={
-                "Bucket": bucket,
-                "Key": key
-            },
-            ExpiresIn=3600
-        )
-
-        return RedirectResponse(url=presigned_url)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Could not generate URL: {e}"
+            detail="Photo not found"
         )
 
 # =========================================================
 # 삭제
 # =========================================================
 
-@app.delete("/photos/{object_key:path}")
+@app.delete("/photos/{object_key}")
 async def delete_photo(object_key: str):
-    target_client, bucket, key = get_s3_client_and_key(object_key)
 
     try:
         # 존재 여부 확인
-        target_client.head_object(
-            Bucket=bucket,
-            Key=key
+        s3_client.head_object(
+            Bucket=S3_BUCKET,
+            Key=object_key
         )
 
     except ClientError:
         raise HTTPException(
             status_code=404,
-            detail=f"Photo not found: {object_key}"
+            detail="Photo not found"
         )
 
     try:
-        target_client.delete_object(
-            Bucket=bucket,
-            Key=key
+        s3_client.delete_object(
+            Bucket=S3_BUCKET,
+            Key=object_key
         )
 
     except Exception as e:
