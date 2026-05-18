@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 # JWT 인증 의존성 설정
-# 이 SECRET_KEY는 auth-server의 키와 일치해야 합니다.
+# 이 SECRET_KEY는 auth_server의 키와 일치해야 합니다.
 SECRET_KEY = config.JWT_SECRET_KEY
 ALGORITHM = "HS256" # JWT 서명 알고리즘
 
