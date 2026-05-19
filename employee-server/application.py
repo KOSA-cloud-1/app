@@ -88,7 +88,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 # Flask의 url_for와의 일관성을 위해 이를 에뮬레이트하려고 합니다.
 def get_photo_url_for_fastapi(object_key: str):
     # 게이트웨이가 프록시할 수 있는 상대 URL 반환
-    return f"/photos/{object_key}"
+    return f"/static/uploads/{object_key}"
 
 
 @app.on_event("startup")
