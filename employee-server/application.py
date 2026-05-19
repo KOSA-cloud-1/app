@@ -211,5 +211,22 @@ async def delete_employee_route(employee_id: int, current_user: str = Depends(ge
     database.delete_employee(employee_id) # 데이터베이스에서 직원 삭제
     return JSONResponse(status_code=status.HTTP_200_OK, content={"success": True, "message": f"Employee {employee_id} deleted."}) # 성공 응답 반환
 
+@app.get("/health")
+def health_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "health ok"}
+
+
+@app.get("/ready")
+def ready_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "ready ok"}
+
 # The if __name__ == "__main__": block is removed as Uvicorn will run the app directly.
 # Example command to run with Uvicorn: uvicorn application:app --host 0.0.0.0 --port 5002 --reload
