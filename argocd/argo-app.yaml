@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/KOSA-cloud-1/k8s-manifests'
+    targetRevision: dev
+    path: apps
+    directory:
+      recurse: true  # apps/ 하위 서비스 디렉터리 전부 감지
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=foreground  # 리소스 삭제 순서 보장
+      - ApplyOutOfSyncOnly=true   # 변경된 리소스만 apply (속도 향상)
