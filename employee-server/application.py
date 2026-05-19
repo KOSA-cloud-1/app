@@ -227,6 +227,10 @@ def ready_check():
     성공적으로 응답하면 'ok' 상태를 반환합니다.
     """
     return {"status": "ready ok"}
+@app.get("/argocd-test")
+def argocd_test():
+    print("ArgoCD test endpoint hit") # ArgoCD가 이 엔드포인트에 접근할 때 로그에 메시지 출력
+    return {"message": "ArgoCD test successful"} # ArgoCD 테스트 성공 메시지 반환
 
 # The if __name__ == "__main__": block is removed as Uvicorn will run the app directly.
 # Example command to run with Uvicorn: uvicorn application:app --host 0.0.0.0 --port 5002 --reload
