@@ -188,3 +188,21 @@ async def list_photos():
             status_code=500,
             detail=str(e)
         )
+
+
+@app.get("/health")
+def health_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "health ok"}
+
+
+@app.get("/ready")
+def ready_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "ready ok"}

@@ -46,5 +46,22 @@ async def login(user_credentials: LoginRequest):
 
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
+@app.get("/health")
+def health_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "health ok"}
+
+
+@app.get("/ready")
+def ready_check():
+    """
+    Docker HEALTHCHECK를 위한 간단한 엔드포인트.
+    성공적으로 응답하면 'ok' 상태를 반환합니다.
+    """
+    return {"status": "ready ok"}
+
 # The if __name__ == '__main__': block is removed as Uvicorn will run the app directly.
 # Example command to run with Uvicorn: uvicorn app:app --host 0.0.0.0 --port 5001
