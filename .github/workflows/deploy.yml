@@ -12,7 +12,7 @@ env:
   REGISTRY_NAME: ${{ secrets.DOCKERHUB_USERNAME }}
   MANIFEST_REPO: KOSA-cloud-1/k8s-manifests
   MANIFEST_BRANCH: dev
-  SERVICES: auth-server employee-server photo-service gateway
+  SERVICES: auth-server employee-server photo-service gateway nginx
 
 jobs:
   build-and-update-manifest:
