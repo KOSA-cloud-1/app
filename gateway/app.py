@@ -29,7 +29,8 @@ async def shutdown_event():
     await client.aclose()
 
 # 직원 사진 요청을 위한 프록시
-@app.api_route("/static/uploads/{filename:path}", methods=["GET"])
+# @app.api_route("/static/uploads/{filename:path}", methods=["GET"])
+@app.api_route("/photos/{filename:path}", methods=["GET"])
 async def proxy_employee_photo_requests(filename: str, request: Request):
     """직원 사진 요청을 직원 서버로 프록시합니다."""
     url = f"{PHOTO_SERVICE_URL}/photos/{filename}" # 사진 서비스의 사진 URL 구성
