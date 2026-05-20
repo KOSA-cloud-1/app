@@ -1,41 +1,35 @@
 
+import os
 import jwt
 import datetime
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Define a Pydantic model for login request
 class LoginRequest(BaseModel):
     username: str
     password: str
 
 app = FastAPI()
 
-# Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# In a real application, this secret key should be complex and stored securely.
-SECRET_KEY = 'your-super-secret-key-change-it' # Moved from app.config
+SECRET_KEY     = os.environ['JWT_SECRET_KEY']
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
 
 @app.post('/login')
 async def login(user_credentials: LoginRequest):
-    """
-    Handles user login.
-    Expects a JSON payload with 'username' and 'password'.
-    """
     username = user_credentials.username
     password = user_credentials.password
 
-    # Hardcoded credentials for demonstration purposes.
-    # In a real-world scenario, you would validate against a user database.
-    if username == 'admin' and password == 'password':
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         # Create the JWT token
         token = jwt.encode({
             'user': username,
