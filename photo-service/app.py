@@ -1,15 +1,56 @@
 import os
+import time
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 import boto3
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
 # .env 로드
 load_dotenv()
 
 app = FastAPI()
+
+# =========================================================
+# Prometheus 메트릭 
+# =========================================================
+# 업로드 처리 흐름을 계측한다. Prometheus가 /metrics 를 주기적으로 scrape 한다.
+PROFILE_IMAGE_REQUESTS = Counter(
+    "profile_image_requests_total", "이미지 처리(업로드) 요청 수"
+)
+PROFILE_IMAGE_SUCCESS = Counter(
+    "profile_image_success_total", "이미지 처리 성공 수"
+)
+PROFILE_IMAGE_FAILED = Counter(
+    "profile_image_failed_total", "이미지 처리 실패 수"
+)
+PROFILE_IMAGE_PROCESSING_SECONDS = Histogram(
+    "profile_image_processing_seconds",
+    "이미지 처리 소요 시간(초)",
+    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10),  # _bucket 생성 → P95 계산용
+)
+PROFILE_IMAGE_ACTIVE_JOBS = Gauge(
+    "profile_image_active_jobs", "현재 처리 중인 작업 수"
+)
+PROFILE_IMAGE_QUEUE_DEPTH = Gauge(
+    "profile_image_queue_depth", "대기 중인 이미지 처리 작업 수"
+)
+# photo-service는 내부 작업 큐가 없으므로 dashboard 계약을 위해 0으로 노출한다.
+PROFILE_IMAGE_QUEUE_DEPTH.set(0)
+
+
+@app.get("/metrics")
+def metrics():
+    """Prometheus scrape 대상 엔드포인트."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 # =========================================================
 # Ceph RGW(S3 API) 설정
@@ -53,47 +94,63 @@ async def upload_photo(file: UploadFile = File(...)):
     파일 업로드 후 object_key 반환
     """
 
-    if not file.filename:
-        raise HTTPException(
-            status_code=400,
-            detail="No file selected"
-        )
-
-    # 확장자 추출
-    file_extension = (
-        file.filename.split(".")[-1]
-        if "." in file.filename
-        else "bin"
-    )
-
-    # UUID 기반 object_key 생성
-    object_key = f"{uuid.uuid4()}.{file_extension}"
+    # 메트릭: 요청 수 증가 + 처리 중 작업 수 증가, 처리시간 측정 시작
+    PROFILE_IMAGE_REQUESTS.inc()
+    PROFILE_IMAGE_ACTIVE_JOBS.inc()
+    start = time.perf_counter()
 
     try:
-        # Ceph S3 업로드
-        s3_client.upload_fileobj(
-            file.file,
-            S3_BUCKET,
-            object_key,
-            ExtraArgs={
-                "ContentType": file.content_type
+        if not file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="No file selected"
+            )
+
+        # 확장자 추출
+        file_extension = (
+            file.filename.split(".")[-1]
+            if "." in file.filename
+            else "bin"
+        )
+
+        # UUID 기반 object_key 생성
+        object_key = f"{uuid.uuid4()}.{file_extension}"
+
+        try:
+            # Ceph S3 업로드
+            s3_client.upload_fileobj(
+                file.file,
+                S3_BUCKET,
+                object_key,
+                ExtraArgs={
+                    "ContentType": file.content_type
+                }
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not upload file: {e}"
+            )
+
+        PROFILE_IMAGE_SUCCESS.inc()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "message": "Upload success",
+                "object_key": object_key,
+                "url": f"/photos/{object_key}"
             }
         )
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Could not upload file: {e}"
-        )
+    except Exception:
+        # 4xx/5xx 등 모든 예외를 실패로 집계 후 그대로 전달
+        PROFILE_IMAGE_FAILED.inc()
+        raise
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            "message": "Upload success",
-            "object_key": object_key,
-            "url": f"/photos/{object_key}"
-        }
-    )
+    finally:
+        PROFILE_IMAGE_ACTIVE_JOBS.dec()
+        PROFILE_IMAGE_PROCESSING_SECONDS.observe(time.perf_counter() - start)
 
 # =========================================================
 # 다운로드 / 조회
