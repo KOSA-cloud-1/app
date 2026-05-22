@@ -340,7 +340,7 @@ async def convert_employee_image(object_key: str):
                 detail=f"AI conversion failed: {str(e)}"
             )
 
-@app.get("/health")
+@app.get("/photo-service/health")
 def health_check():
     """
     Docker HEALTHCHECK를 위한 간단한 엔드포인트.
@@ -349,7 +349,7 @@ def health_check():
     return {"status": "health ok"}
 
 
-@app.get("/ready")
+@app.get("/photo-service/ready")
 def ready_check():
     """
     Docker HEALTHCHECK를 위한 간단한 엔드포인트.
