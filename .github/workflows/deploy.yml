@@ -36,7 +36,7 @@ jobs:
             docker build -t "$image" "./$service"
             docker push "$image"
           done
-          docker build -t "$REGISTRY_NAME/frontend:${{ github.sha }}" "./nginx"
+          docker build -t "$REGISTRY_NAME/frontend:${{ github.sha }}" -f nginx/Dockerfile .
           docker push "$REGISTRY_NAME/frontend:${{ github.sha }}"
 
       - name: Checkout k8s-manifest repository
