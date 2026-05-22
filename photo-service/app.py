@@ -25,29 +25,27 @@ app = FastAPI()
 # =========================================================
 # Prometheus 메트릭 
 # =========================================================
-# 업로드 처리 흐름을 계측한다. Prometheus가 /metrics 를 주기적으로 scrape 한다.
+# AI 이미지 변환(/photos/ai/{object_key}) 처리 흐름을 계측한다. Prometheus가 /metrics 를 scrape 한다.
 PROFILE_IMAGE_REQUESTS = Counter(
-    "profile_image_requests_total", "이미지 처리(업로드) 요청 수"
+    "profile_image_requests_total", "AI 이미지 변환 요청 수"
 )
 PROFILE_IMAGE_SUCCESS = Counter(
-    "profile_image_success_total", "이미지 처리 성공 수"
+    "profile_image_success_total", "AI 이미지 변환 성공 수"
 )
 PROFILE_IMAGE_FAILED = Counter(
-    "profile_image_failed_total", "이미지 처리 실패 수"
+    "profile_image_failed_total", "AI 이미지 변환 실패 수(429 거부 포함)"
 )
 PROFILE_IMAGE_PROCESSING_SECONDS = Histogram(
     "profile_image_processing_seconds",
-    "이미지 처리 소요 시간(초)",
-    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10),  # _bucket 생성 → P95 계산용
+    "AI 이미지 변환 소요 시간(초)",
+    buckets=(0.5, 1, 2, 5, 10, 20, 30, 60, 120),  # AI 변환은 길어서 버킷 확장. _bucket → P95
 )
 PROFILE_IMAGE_ACTIVE_JOBS = Gauge(
-    "profile_image_active_jobs", "현재 처리 중인 작업 수"
+    "profile_image_active_jobs", "현재 변환 처리 중인 작업 수(세마포어 점유)"
 )
 PROFILE_IMAGE_QUEUE_DEPTH = Gauge(
-    "profile_image_queue_depth", "대기 중인 이미지 처리 작업 수"
+    "profile_image_queue_depth", "세마포어 획득 대기 중인 변환 작업 수"
 )
-# photo-service는 내부 작업 큐가 없으므로 dashboard 계약을 위해 0으로 노출한다.
-PROFILE_IMAGE_QUEUE_DEPTH.set(0)
 
 
 @app.get("/metrics")
@@ -95,65 +93,50 @@ create_bucket_if_not_exists()
 async def upload_photo(file: UploadFile = File(...)):
     """
     파일 업로드 후 object_key 반환
+    (단순 S3 업로드. profile_image_* 메트릭은 AI 변환 엔드포인트에서 계측한다.)
     """
 
-    # 메트릭: 요청 수 증가 + 처리 중 작업 수 증가, 처리시간 측정 시작
-    PROFILE_IMAGE_REQUESTS.inc()
-    PROFILE_IMAGE_ACTIVE_JOBS.inc()
-    start = time.perf_counter()
-
-    try:
-        if not file.filename:
-            raise HTTPException(
-                status_code=400,
-                detail="No file selected"
-            )
-
-        # 확장자 추출
-        file_extension = (
-            file.filename.split(".")[-1]
-            if "." in file.filename
-            else "bin"
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected"
         )
 
-        # UUID 기반 object_key 생성
-        object_key = f"{uuid.uuid4()}.{file_extension}"
+    # 확장자 추출
+    file_extension = (
+        file.filename.split(".")[-1]
+        if "." in file.filename
+        else "bin"
+    )
 
-        try:
-            # Ceph S3 업로드
-            s3_client.upload_fileobj(
-                file.file,
-                S3_BUCKET,
-                object_key,
-                ExtraArgs={
-                    "ContentType": file.content_type
-                }
-            )
+    # UUID 기반 object_key 생성
+    object_key = f"{uuid.uuid4()}.{file_extension}"
 
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Could not upload file: {e}"
-            )
-
-        PROFILE_IMAGE_SUCCESS.inc()
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "message": "Upload success",
-                "object_key": object_key,
-                "url": f"/photos/{object_key}"
+    try:
+        # Ceph S3 업로드
+        s3_client.upload_fileobj(
+            file.file,
+            S3_BUCKET,
+            object_key,
+            ExtraArgs={
+                "ContentType": file.content_type
             }
         )
 
-    except Exception:
-        # 4xx/5xx 등 모든 예외를 실패로 집계 후 그대로 전달
-        PROFILE_IMAGE_FAILED.inc()
-        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not upload file: {e}"
+        )
 
-    finally:
-        PROFILE_IMAGE_ACTIVE_JOBS.dec()
-        PROFILE_IMAGE_PROCESSING_SECONDS.observe(time.perf_counter() - start)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": "Upload success",
+            "object_key": object_key,
+            "url": f"/photos/{object_key}"
+        }
+    )
 
 # =========================================================
 # 다운로드 / 조회
@@ -302,43 +285,75 @@ async def run_ai_model(object_key: str):
 
     # image.save(f"/static/result/{object_key}")
 
-    # 예시용 딜레이
+    # 예시용 딜레이 (AI 변환 처리 시뮬레이션)
     await asyncio.sleep(3)
 
+    print(f"converted_{object_key}: AI 이미지 변환 완료 (mock)")
 
+    # 실제 AI 모델이 없으므로 가짜(mock) 결과를 하드코딩해 반환한다.
+    # (FastAPI가 JSON으로 직렬화하므로 dict/str 등 직렬화 가능한 값이어야 한다.)
     return {
-        print(f"converted_{object_key}: AI 이미지 변환을 진행중입니다.")
+        "converted_object_key": f"converted_{object_key}",
+        "status": "done",
+        "mock": True,
     }
 
 # 변환 API
 @app.get("/photos/ai/{object_key}")
 async def convert_employee_image(object_key: str):
 
+    # 메트릭: 변환 요청 수
+    PROFILE_IMAGE_REQUESTS.inc()
+
+    # 동시 처리 한도가 꽉 차면 즉시 429 (실패로 집계)
     if semaphore.locked() and semaphore._value == 0:
+        PROFILE_IMAGE_FAILED.inc()
         raise HTTPException(
             status_code=429,
             detail="서버가 바쁩니다. 잠시 후 다시 시도해주세요."
         )
 
-    async with semaphore:
+    # 세마포어 대기열 진입(queue_depth +1). 획득 전 취소돼도 finally에서 보정.
+    PROFILE_IMAGE_QUEUE_DEPTH.inc()
+    acquired = False
+    start = None
+    try:
+        await semaphore.acquire()
+        acquired = True
+        PROFILE_IMAGE_QUEUE_DEPTH.dec()      # 대기 종료
+        PROFILE_IMAGE_ACTIVE_JOBS.inc()      # 처리 시작
+        start = time.perf_counter()
 
-        try:
-            print(f"AI 이미지 변환 요청 : {object_key}")
+        print(f"AI 이미지 변환 요청 : {object_key}")
 
-            # AI 변환 수행
-            result = await run_ai_model(object_key)
+        # AI 변환 수행
+        result = await run_ai_model(object_key)
 
-            return {
-                "success": True,
-                "message": "AI image converted successfully",
-                "data": result
-            }
+        PROFILE_IMAGE_SUCCESS.inc()
+        return {
+            "success": True,
+            "message": "AI image converted successfully",
+            "data": result
+        }
 
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"AI conversion failed: {str(e)}"
-            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        PROFILE_IMAGE_FAILED.inc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI conversion failed: {str(e)}"
+        )
+
+    finally:
+        if acquired:
+            PROFILE_IMAGE_ACTIVE_JOBS.dec()
+            if start is not None:
+                PROFILE_IMAGE_PROCESSING_SECONDS.observe(time.perf_counter() - start)
+            semaphore.release()
+        else:
+            # 세마포어 미획득(대기 중 취소 등) → 대기열 카운트 보정
+            PROFILE_IMAGE_QUEUE_DEPTH.dec()
 
 @app.get("/photo-service/health")
 def health_check():
