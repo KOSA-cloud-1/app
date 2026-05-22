@@ -285,12 +285,17 @@ async def run_ai_model(object_key: str):
 
     # image.save(f"/static/result/{object_key}")
 
-    # 예시용 딜레이
+    # 예시용 딜레이 (AI 변환 처리 시뮬레이션)
     await asyncio.sleep(3)
 
+    print(f"converted_{object_key}: AI 이미지 변환 완료 (mock)")
 
+    # 실제 AI 모델이 없으므로 가짜(mock) 결과를 하드코딩해 반환한다.
+    # (FastAPI가 JSON으로 직렬화하므로 dict/str 등 직렬화 가능한 값이어야 한다.)
     return {
-        print(f"converted_{object_key}: AI 이미지 변환을 진행중입니다.")
+        "converted_object_key": f"converted_{object_key}",
+        "status": "done",
+        "mock": True,
     }
 
 # 변환 API
