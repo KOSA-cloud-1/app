@@ -249,15 +249,16 @@ async def list_photos():
             detail=str(e)
         )
 
-pipe = None
+# pipe = None
 @app.on_event("startup")
 async def load_model():
-    global pipe
+    # global pipe
     print("AI 모델 로딩 중...")
-    pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-        "nitrosocke/Ghibli-Diffusion"
-    )
-    pipe.to("cuda")
+    # pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+    #     "nitrosocke/Ghibli-Diffusion"
+    # )
+    # pipe.to("cuda")
+    sleep(2) # 모델 로딩 시뮬레이션
     print("AI 모델 로딩 완료!")
 
 
