@@ -2,6 +2,8 @@ import time # 시간 측정을 위한 모듈
 from fastapi import FastAPI, Request, Response, HTTPException # FastAPI 프레임워크 관련 모듈
 from fastapi.middleware.cors import CORSMiddleware # CORS(교차 출처 리소스 공유) 미들웨어
 import httpx # 비동기 HTTP 요청을 위한 라이브러리 (FastAPI의 비동기 특성과 호환)
+from prometheus_fastapi_instrumentator import Instrumentator # 프록시 전 라우트 HTTP 메트릭 자동 계측
+
 
 app = FastAPI() # FastAPI 애플리케이션 인스턴스 생성
 
@@ -13,6 +15,11 @@ app.add_middleware(
     allow_methods=["*"],  # 모든 HTTP 메서드 허용
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
+
+# Prometheus 계측: 모든 라우트의 요청수/지연/상태코드를 자동 수집하고 GET /metrics 로 노출한다.
+# 게이트웨이엔 catch-all 라우트가 없어 /metrics 가 프록시에 가려지지 않는다.
+# 메트릭: http_request_duration_seconds{handler,method,status} (histogram) → _count(RPS)/_bucket(P95).
+Instrumentator().instrument(app).expose(app)
 
 # 다운스트림 서비스(인증 서버, 직원 서버)의 URL 정의
 AUTH_SERVER_URL = "http://auth-server:5001"

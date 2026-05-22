@@ -162,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p>Badges: ${emp.badges || 'N/A'}</p>
                             <button class="edit-employee" data-id="${emp.id}">Edit</button>
                             <button class="delete-employee" data-id="${emp.id}">Delete</button>
+                            <button class="convert-employee" data-id="${emp.id}">AI-Image</button>
                         </div>
                     `;
                     employeeListDiv.appendChild(empDiv);
@@ -232,6 +233,47 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch (error) {
                         showMessage(employeeMessage, `Error deleting employee: ${error.message}`, true);
+                    } finally {
+                        hideLoading();
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.convert-employee').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const id = e.target.dataset.id;
+
+                if (confirm('Are you sure you want to convert image to AI-Image?')) {
+                    showLoading();
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/photos/ai/${id}`, {
+                            method: 'GET',
+                            headers: getAuthHeaders()
+                        });
+
+                        const data = await response.json();
+
+                        if (response.status === 429) {
+                            showMessage(employeeMessage, data.detail || '서버가 바쁩니다. 잠시 후 다시 시도해주세요.', true);
+                            return;
+                        }
+                        if (response.status === 500) {
+                            showMessage(employeeMessage, data.detail || '서비스 요청에 실패하였습니다.', true);
+                            return;
+                        }
+
+                        if (response.ok) {
+                            showMessage(employeeMessage, data.message || 'AI image converted successfully.');
+                            fetchEmployees();
+                        } else {
+                            showMessage(employeeMessage, data.message || 'Failed to convert AI image', true);
+                        }
+
+                    } catch (error) {
+                        showMessage(employeeMessage, `Error converting image: ${error.message}`, true);
+
                     } finally {
                         hideLoading();
                     }

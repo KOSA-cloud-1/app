@@ -13,6 +13,9 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
+import asyncio
+# from diffusers import StableDiffusionImg2ImgPipeline
+# import torch
 
 # .env 로드
 load_dotenv()
@@ -246,6 +249,96 @@ async def list_photos():
             detail=str(e)
         )
 
+pipe = None
+@app.on_event("startup")
+async def load_model():
+    global pipe
+    print("AI 모델 로딩 중...")
+    pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+        "nitrosocke/Ghibli-Diffusion"
+    )
+    pipe.to("cuda")
+    print("AI 모델 로딩 완료!")
+
+
+
+# 최대 동시 처리 개수 제한
+semaphore = asyncio.Semaphore(10)
+
+
+
+# 실제 AI 모델 처리 함수
+async def run_ai_model(object_key: str):
+
+    # # 이미지 로드 + 리사이즈
+    # init_image = Image.open(f"/static/{object_key}").convert("RGB")
+    # init_image = init_image.resize((512, 512))
+
+    # image = pipe(
+    #     prompt="""
+    #     ghibli style, Studio Ghibli, Miyazaki,
+    #     anime character,
+    #     soft watercolor illustration,
+    #     pastel colors, warm soft lighting,
+    #     dreamy atmosphere,
+    #     best quality, masterpiece, highly detailed
+    #     """,
+    #     negative_prompt="""
+    #     photorealistic, 3d render, blurry,
+    #     ugly face, deformed face, disfigured,
+    #     asymmetrical face, cross eyed,
+    #     bad eyes, creepy eyes, dead eyes,
+    #     scary, horror, dark, gloomy,
+    #     bad anatomy, extra limbs, mutation,
+    #     lowres, low quality, worst quality,
+    #     text, watermark, signature,
+    #     noise, grain
+    #     """,
+    #     image=init_image,
+    #     strength=0.35,
+    #     guidance_scale=7,
+    #     num_inference_steps=50   # 30 → 40 디테일 향상
+    #     ).images[0]
+
+    # image.save(f"/static/result/{object_key}")
+
+    # 예시용 딜레이
+    await asyncio.sleep(3)
+
+
+    return {
+        print(f"converted_{object_key}: AI 이미지 변환을 진행중입니다.")
+    }
+
+# 변환 API
+@app.get("/photos/ai/{object_key}")
+async def convert_employee_image(object_key: str):
+
+    if semaphore.locked() and semaphore._value == 0:
+        raise HTTPException(
+            status_code=429,
+            detail="서버가 바쁩니다. 잠시 후 다시 시도해주세요."
+        )
+
+    async with semaphore:
+
+        try:
+            print(f"AI 이미지 변환 요청 : {object_key}")
+
+            # AI 변환 수행
+            result = await run_ai_model(object_key)
+
+            return {
+                "success": True,
+                "message": "AI image converted successfully",
+                "data": result
+            }
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"AI conversion failed: {str(e)}"
+            )
 
 @app.get("/health")
 def health_check():
@@ -263,3 +356,6 @@ def ready_check():
     성공적으로 응답하면 'ok' 상태를 반환합니다.
     """
     return {"status": "ready ok"}
+
+
+
