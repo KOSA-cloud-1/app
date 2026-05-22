@@ -33,10 +33,11 @@ jobs:
         run: |
           for service in $SERVICES; do
             image="$REGISTRY_NAME/$service:${{ github.sha }}"
-
             docker build -t "$image" "./$service"
             docker push "$image"
           done
+          docker build -t "$REGISTRY_NAME/frontend:${{ github.sha }}" "./frontend/nginx-deployment.yaml"
+          docker push "$REGISTRY_NAME/frontend:${{ github.sha }}"
 
       - name: Checkout k8s-manifest repository
         uses: actions/checkout@v4
@@ -58,6 +59,11 @@ jobs:
             sed -i "s|image: .*|image: $image|g" "$manifest"
             git add "$manifest"
           done
+
+          image="$REGISTRY_NAME/frontend:${{ github.sha }}"
+          manifest="apps/frontend/nginx-deployment.yaml"
+          sed -i "s|image: .*|image: $image|g" "$manifest"
+          git add "$manifest"
 
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
