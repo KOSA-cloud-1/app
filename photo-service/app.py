@@ -258,7 +258,6 @@ async def load_model():
     #     "nitrosocke/Ghibli-Diffusion"
     # )
     # pipe.to("cuda")
-    sleep(2) # 모델 로딩 시뮬레이션
     print("AI 모델 로딩 완료!")
 
 
