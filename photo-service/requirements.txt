@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-multipart
+boto3
+python-dotenv
+prometheus-client
+asyncio
+
+
+# ---- ai packages ----
+#torch
+#diffusers 
+#transformers 
+#accelerate 
+#torchvision 
+#Pillow
