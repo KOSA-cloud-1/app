@@ -1,0 +1,4 @@
+fastapi # FastAPI 웹 프레임워크
+uvicorn # ASGI 서버
+
+PyJWT # JWT 토큰 생성 및 검증
