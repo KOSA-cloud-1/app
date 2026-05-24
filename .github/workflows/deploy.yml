@@ -81,10 +81,13 @@ jobs:
           KUSTOMIZATION="apps/overlays/$OVERLAY/kustomization.yaml"
           SHA="${{ github.sha }}"
 
-          # SERVICES + frontend 의 images[].newTag 를 이번 커밋 SHA 로 갱신.
-          # images[].name 은 "<DOCKERHUB_USERNAME>/<service>" 와 정확히 일치해야 매칭된다.
+          # images[].name 은 base 의 논리 이미지명($service)과 일치한다.
+          # newName(registry/user)은 DOCKERHUB_USERNAME 로, newTag 는 커밋 SHA 로 갱신한다.
+          # → registry/user 하드코딩이 매니페스트에서 분리되어 시크릿으로 주입된다.
           for service in $SERVICES frontend; do
-            SVC="$REGISTRY_NAME/$service" TAG="$SHA" \
+            SVC="$service" NAME="$REGISTRY_NAME/$service" \
+              yq -i '(.images[] | select(.name == env(SVC)) | .newName) = env(NAME)' "$KUSTOMIZATION"
+            SVC="$service" TAG="$SHA" \
               yq -i '(.images[] | select(.name == env(SVC)) | .newTag) = env(TAG)' "$KUSTOMIZATION"
           done
 
