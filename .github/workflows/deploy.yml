@@ -1,9 +1,14 @@
 name: Build Image and Update Kubernetes Manifest
 
+# dev push  → apps/overlays/dev  의 이미지 태그 갱신  → ArgoCD kosa-apps-dev  → apps-dev (개발)
+# main push → apps/overlays/prod 의 이미지 태그 갱신  → ArgoCD kosa-apps      → apps     (운영)
+# 두 overlay 모두 k8s-manifests 의 dev 브랜치에 있으므로(환경 분리는 overlay 경로/네임스페이스로 함)
+# 갱신 커밋은 항상 MANIFEST_BRANCH(dev) 로 push 한다.
 on:
   push:
     branches:
       - dev
+      - main
 
 permissions:
   contents: read
@@ -19,6 +24,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Determine target overlay
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "overlay=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "overlay=dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout app repository
         uses: actions/checkout@v4
 
@@ -47,26 +62,35 @@ jobs:
           token: ${{ secrets.MANIFEST_REPO_TOKEN }}
           path: k8s-manifest
 
-      - name: Update image tag in Kubernetes manifest
+      - name: Setup yq
+        shell: bash
+        run: |
+          if ! command -v yq >/dev/null 2>&1; then
+            sudo wget -qO /usr/local/bin/yq \
+              https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+          yq --version
+
+      - name: Update image tags in kustomize overlay
         shell: bash
         run: |
           cd k8s-manifest
 
-          for service in $SERVICES; do
-            image="$REGISTRY_NAME/$service:${{ github.sha }}"
-            manifest="apps/$service/$service.yaml"
+          OVERLAY="${{ steps.target.outputs.overlay }}"
+          KUSTOMIZATION="apps/overlays/$OVERLAY/kustomization.yaml"
+          SHA="${{ github.sha }}"
 
-            sed -i "s|image: .*|image: $image|g" "$manifest"
-            git add "$manifest"
+          # SERVICES + frontend 의 images[].newTag 를 이번 커밋 SHA 로 갱신.
+          # images[].name 은 "<DOCKERHUB_USERNAME>/<service>" 와 정확히 일치해야 매칭된다.
+          for service in $SERVICES frontend; do
+            SVC="$REGISTRY_NAME/$service" TAG="$SHA" \
+              yq -i '(.images[] | select(.name == env(SVC)) | .newTag) = env(TAG)' "$KUSTOMIZATION"
           done
-
-          image="$REGISTRY_NAME/frontend:${{ github.sha }}"
-          manifest="apps/frontend/nginx-deployment.yaml"
-          sed -i "s|image: .*|image: $image|g" "$manifest"
-          git add "$manifest"
 
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          git add "$KUSTOMIZATION"
 
-          git commit -m "chore: update image tag to ${{ github.sha }}" || echo "No changes to commit"
-          git push origin $MANIFEST_BRANCH
+          git commit -m "chore($OVERLAY): update image tag to $SHA" || echo "No changes to commit"
+          git push origin "$MANIFEST_BRANCH"
