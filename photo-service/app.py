@@ -2,16 +2,15 @@ import os
 import time
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse
 import boto3
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
+from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import (
     Counter,
     Histogram,
     Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
 )
 import asyncio
 # from diffusers import StableDiffusionImg2ImgPipeline
@@ -21,6 +20,11 @@ import asyncio
 load_dotenv()
 
 app = FastAPI()
+
+# FastAPI HTTP 계측: /upload, /photos/*, /photos/ai/* 등 photo-service 전체 API의
+# 요청수/상태코드/지연시간을 http_request_duration_seconds_* 로 노출한다.
+# profile_image_* 커스텀 메트릭과 같은 registry를 사용하므로 /metrics 에 함께 나온다.
+Instrumentator().instrument(app).expose(app)
 
 # =========================================================
 # Prometheus 메트릭 
@@ -46,12 +50,6 @@ PROFILE_IMAGE_ACTIVE_JOBS = Gauge(
 PROFILE_IMAGE_QUEUE_DEPTH = Gauge(
     "profile_image_queue_depth", "세마포어 획득 대기 중인 변환 작업 수"
 )
-
-
-@app.get("/metrics")
-def metrics():
-    """Prometheus scrape 대상 엔드포인트."""
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 # =========================================================
 # Ceph RGW(S3 API) 설정
@@ -371,6 +369,5 @@ def ready_check():
     성공적으로 응답하면 'ok' 상태를 반환합니다.
     """
     return {"status": "ready ok"}
-
 
 
