@@ -35,37 +35,6 @@ async def shutdown_event():
     # 애플리케이션 종료 시 httpx 클라이언트 연결 닫기
     await client.aclose()
 
-# 직원 사진 요청을 위한 프록시
-# @app.api_route("/static/uploads/{filename:path}", methods=["GET"])
-@app.api_route("/photos/{filename:path}", methods=["GET"])
-async def proxy_employee_photo_requests(filename: str, request: Request):
-    """직원 사진 요청을 직원 서버로 프록시합니다."""
-    url = f"{PHOTO_SERVICE_URL}/photos/{filename}" # 사진 서비스의 사진 URL 구성
-
-    print(f"Gateway: proxy_employee_photo_requests") # 로깅
-    
-    # 호스트 및 Content-Length를 제외한 헤더 재구성 (httpx가 Content-Length 처리)
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ["host", "content-length"]}
-
-    try:
-        # 직원 서버로 요청 전달
-        resp = await client.request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            params=request.query_params,
-            follow_redirects=False
-        )
-        
-        # Content-Encoding, Content-Length, Transfer-Encoding, Connection을 제외한 응답 헤더 재구성
-        excluded_headers = ["content-encoding", "content-length", "transfer-encoding", "connection"]
-        response_headers = {k: v for k, v in resp.headers.items() if k.lower() not in excluded_headers}
-        
-        # 직원 서버의 응답 반환
-        return Response(content=resp.content, status_code=resp.status_code, headers=response_headers)
-    except httpx.RequestError as e:
-        # 서비스 사용 불가 시 예외 발생
-        raise HTTPException(status_code=503, detail=f"Employee photo service unavailable: {str(e)}")
 
 # auth_server로 요청 프록시
 @app.api_route("/api/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
