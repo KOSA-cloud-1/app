@@ -4,6 +4,7 @@ python-multipart
 boto3
 python-dotenv
 prometheus-client
+prometheus-fastapi-instrumentator
 asyncio
 
 
