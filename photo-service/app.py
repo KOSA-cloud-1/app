@@ -231,14 +231,17 @@ async def list_photos():
         )
 
 # pipe = None
+DUMMY_MODEL = None
 @app.on_event("startup")
 async def load_model():
     # global pipe
+    global DUMMY_MODEL
     print("AI 모델 로딩 중...")
     # pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
     #     "nitrosocke/Ghibli-Diffusion"
     # )
     # pipe.to("cuda")
+    DUMMY_MODEL = bytearray(1536 * 1024 * 1024)  # 실제 모델이 없으므로 메모리 점유 시뮬레이션용 더미 데이터 1.5GB 
     print("AI 모델 로딩 완료!")
 
 
@@ -304,7 +307,7 @@ async def convert_employee_image(object_key: str):
     PROFILE_IMAGE_REQUESTS.inc()
 
     # 동시 처리 한도가 꽉 차면 즉시 429 (실패로 집계)
-    if semaphore.locked() and semaphore._value == 0:
+    if semaphore.locked() == 0:
         PROFILE_IMAGE_FAILED.inc()
         raise HTTPException(
             status_code=429,
@@ -352,6 +355,9 @@ async def convert_employee_image(object_key: str):
         else:
             # 세마포어 미획득(대기 중 취소 등) → 대기열 카운트 보정
             PROFILE_IMAGE_QUEUE_DEPTH.dec()
+
+
+
 
 @app.get("/photo-service/health")
 def health_check():
